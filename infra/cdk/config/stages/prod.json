@@ -1,0 +1,7 @@
+{
+  "stage": "prod",
+  "region": "us-east-1",
+  "removalPolicy": "retain",
+  "corsAllowedOrigins": ["*"],
+  "logRetentionDays": 90
+}

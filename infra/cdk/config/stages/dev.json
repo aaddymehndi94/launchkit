@@ -1,0 +1,7 @@
+{
+  "stage": "dev",
+  "region": "us-east-1",
+  "removalPolicy": "destroy",
+  "corsAllowedOrigins": ["*"],
+  "logRetentionDays": 14
+}
