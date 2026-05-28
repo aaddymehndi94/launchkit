@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { readEnv, readOptionalEnv } from "@launchkit/core";
 
@@ -8,6 +8,11 @@ export type UploadTarget = {
   uploadUrl: string;
   method: "PUT";
   headers: Record<string, string>;
+};
+
+export type DownloadTarget = {
+  downloadUrl: string;
+  expiresInSeconds: number;
 };
 
 export function buildObjectKey(profileId: string, filename: string): string {
@@ -50,6 +55,44 @@ export async function createUploadTarget(key: string, contentType: string): Prom
     uploadUrl,
     method: "PUT",
     headers
+  };
+}
+
+export async function createDownloadTarget(
+  key: string,
+  filename: string,
+  contentType: string
+): Promise<DownloadTarget> {
+  const expiresInSeconds = 300;
+  const bucket = readOptionalEnv("UPLOAD_BUCKET_NAME");
+
+  if (!bucket) {
+    const baseUrl = readEnv("PUBLIC_API_URL", `http://localhost:${readEnv("API_PORT", "4000")}`);
+    const url = new URL("/local-upload", baseUrl);
+    url.searchParams.set("key", key);
+    url.searchParams.set("filename", filename);
+    url.searchParams.set("contentType", contentType);
+
+    return {
+      downloadUrl: url.toString(),
+      expiresInSeconds
+    };
+  }
+
+  const downloadUrl = await getSignedUrl(
+    s3,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ResponseContentDisposition: `attachment; filename="${filename.replaceAll('"', "")}"`,
+      ResponseContentType: contentType
+    }),
+    { expiresIn: expiresInSeconds }
+  );
+
+  return {
+    downloadUrl,
+    expiresInSeconds
   };
 }
 

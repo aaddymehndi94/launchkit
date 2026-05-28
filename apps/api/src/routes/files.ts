@@ -1,9 +1,14 @@
 import { presignUploadRequestSchema } from "@launchkit/contracts";
 import { badRequest, success } from "@launchkit/core";
-import { createFileRecord, getDb, listFilesForProfile, softDeleteOwnedFile } from "@launchkit/db";
+import { createFileRecord, getDb, getOwnedFile, listFilesForProfile, softDeleteOwnedFile } from "@launchkit/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../types.js";
-import { buildObjectKey, createUploadTarget, deleteStoredObject } from "../services/storage.js";
+import {
+  buildObjectKey,
+  createDownloadTarget,
+  createUploadTarget,
+  deleteStoredObject
+} from "../services/storage.js";
 
 export const fileRoutes = new Hono<AppEnv>()
   .get("/", async (c) => {
@@ -41,6 +46,21 @@ export const fileRoutes = new Hono<AppEnv>()
         c.get("requestId")
       ),
       201
+    );
+  })
+  .get("/:id/download", async (c) => {
+    const profile = c.get("profile");
+    const file = await getOwnedFile(getDb(), profile.id, c.req.param("id"));
+    const target = await createDownloadTarget(file.key, file.filename, file.contentType);
+
+    return c.json(
+      success(
+        {
+          file,
+          ...target
+        },
+        c.get("requestId")
+      )
     );
   })
   .delete("/:id", async (c) => {

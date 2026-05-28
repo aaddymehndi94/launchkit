@@ -39,6 +39,12 @@ export const presignUploadResponseSchema = z.object({
   headers: z.record(z.string())
 });
 
+export const fileDownloadResponseSchema = z.object({
+  file: fileRecordSchema,
+  downloadUrl: z.string().url(),
+  expiresInSeconds: z.number().int().positive()
+});
+
 export const adminRoleUpdateSchema = z.object({
   role: roleSchema
 });
@@ -70,4 +76,5 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type FileRecord = z.infer<typeof fileRecordSchema>;
 export type PresignUploadInput = z.infer<typeof presignUploadRequestSchema>;
 export type PresignUploadResponse = z.infer<typeof presignUploadResponseSchema>;
+export type FileDownloadResponse = z.infer<typeof fileDownloadResponseSchema>;
 export type AdminMetrics = z.infer<typeof adminMetricsSchema>;

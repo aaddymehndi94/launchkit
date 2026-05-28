@@ -27,6 +27,18 @@ export async function listFilesForProfile(db: DbClient, ownerProfileId: string) 
   return rows.map(mapFile);
 }
 
+export async function getOwnedFile(db: DbClient, ownerProfileId: string, fileId: string) {
+  const row = await db.query.files.findFirst({
+    where: and(eq(files.id, fileId), eq(files.ownerProfileId, ownerProfileId), eq(files.isDeleted, false))
+  });
+
+  if (!row) {
+    throw notFound("File not found.");
+  }
+
+  return mapFile(row);
+}
+
 export async function softDeleteOwnedFile(db: DbClient, ownerProfileId: string, fileId: string) {
   const updated = await db
     .update(files)

@@ -1,5 +1,6 @@
 import type {
   AdminMetrics,
+  FileDownloadResponse,
   FileRecord,
   PresignUploadInput,
   PresignUploadResponse,
@@ -82,6 +83,7 @@ export function createApiClient(
         method: "POST",
         body: JSON.stringify(input)
       }),
+    getFileDownload: (id: string) => request<FileDownloadResponse>(`/files/${id}/download`),
     deleteFile: (id: string) =>
       request<FileRecord>(`/files/${id}`, {
         method: "DELETE"

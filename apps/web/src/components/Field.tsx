@@ -24,13 +24,14 @@ export function Field({
 
 export function SelectField({
   label,
+  hideLabel = false,
   className,
   children,
   ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & { label: string }) {
+}: SelectHTMLAttributes<HTMLSelectElement> & { label: string; hideLabel?: boolean }) {
   return (
     <label className="grid gap-2 text-sm font-medium text-ink">
-      <span>{label}</span>
+      <span className={hideLabel ? "sr-only" : undefined}>{label}</span>
       <select
         className={cn(
           "h-10 rounded-md border border-line bg-field px-3 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20",

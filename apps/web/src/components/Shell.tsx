@@ -9,14 +9,14 @@ export function Shell() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f4] text-ink">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-line bg-paper px-4 py-5 lg:block">
-        <div className="mb-8 flex items-center gap-3 px-2">
+      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-line bg-paper px-5 py-6 lg:block">
+        <div className="mb-8 flex items-center gap-3 px-1">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-brand text-white">
             <Boxes className="h-5 w-5" />
           </div>
           <div>
             <p className="font-semibold">LaunchKit</p>
-            <p className="text-xs text-muted">AWS starter stack</p>
+            <p className="text-xs text-muted">Deployable starter stack</p>
           </div>
         </div>
         <nav className="grid gap-1">
@@ -26,9 +26,13 @@ export function Shell() {
             <ShellLink to="/admin" icon={ShieldCheck} label="Admin" />
           ) : null}
         </nav>
+        <div className="absolute bottom-6 left-5 right-5 rounded-lg border border-line bg-field p-4">
+          <p className="text-sm font-semibold text-ink">Dev stack online</p>
+          <p className="mt-1 text-xs leading-5 text-muted">Core services are responding in this environment.</p>
+        </div>
       </aside>
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         <header className="sticky top-0 z-10 border-b border-line bg-paper/90 px-4 py-3 backdrop-blur lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -46,7 +50,7 @@ export function Shell() {
             {auth.user?.role === "admin" ? <MobileLink to="/admin" label="Admin" /> : null}
           </nav>
         </header>
-        <main className="px-4 py-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
           <Outlet />
         </main>
       </div>
