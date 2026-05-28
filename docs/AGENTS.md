@@ -1,5 +1,7 @@
 # Agent Guide
 
+The canonical coding-agent guide is the repo-level [`AGENTS.md`](../AGENTS.md). This file keeps the quick workflow summary for readers already inside `docs`.
+
 This repo is designed so coding agents can add features predictably.
 
 ## Add An API Feature
