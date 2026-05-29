@@ -8,6 +8,10 @@ export function mapProfile(row: ProfileRow): Profile {
     email: row.email,
     displayName: row.displayName,
     role: row.role,
+    profilePhotoKey: row.profilePhotoKey,
+    profilePhotoContentType: row.profilePhotoContentType,
+    profilePhotoSizeBytes: row.profilePhotoSizeBytes,
+    profilePhotoUpdatedAt: row.profilePhotoUpdatedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };

@@ -1,30 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { maxProfilePhotoBytes, profilePhotoContentTypes } from "@launchkit/contracts";
 import {
   Activity,
-  Boxes,
+  Camera,
   CheckCircle2,
   Cloud,
   Database,
   FileUp,
+  ImageIcon,
   Route,
   ShieldCheck,
+  Trash2,
   Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
 import { Loading } from "../components/Loading";
 import { StatCard } from "../components/StatCard";
 import { useApi } from "../lib/api-context";
-import { formatBytes, formatDate } from "../lib/utils";
+import { formatBytes } from "../lib/utils";
 
 export function DashboardPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ["me"], queryFn: api.getMe });
   const files = useQuery({ queryKey: ["files"], queryFn: api.listFiles });
+  const photo = useQuery({ queryKey: ["me", "photo"], queryFn: api.getProfilePhoto, enabled: Boolean(profile.data) });
   const [displayName, setDisplayName] = useState("");
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayName(profile.data?.displayName ?? "");
@@ -37,12 +42,71 @@ export function DashboardPage() {
     }
   });
 
+  const uploadPhoto = useMutation({
+    mutationFn: async (file: globalThis.File) => {
+      if (!isAllowedPhotoType(file.type)) {
+        throw new Error("Choose a JPG, PNG, WebP, or GIF image.");
+      }
+
+      if (file.size > maxProfilePhotoBytes) {
+        throw new Error("Profile photos must be 5 MB or smaller.");
+      }
+
+      const target = await api.createProfilePhotoUpload({
+        filename: file.name,
+        contentType: file.type,
+        sizeBytes: file.size
+      });
+
+      const uploadResponse = await fetch(target.uploadUrl, {
+        method: target.method,
+        headers: target.headers,
+        body: file
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Profile photo upload target rejected the file.");
+      }
+
+      return api.saveProfilePhoto({
+        key: target.key,
+        contentType: file.type,
+        sizeBytes: file.size
+      });
+    },
+    onSuccess: async () => {
+      setPhotoError(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me"] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "photo"] })
+      ]);
+    },
+    onError: (caught) => {
+      setPhotoError(caught instanceof Error ? caught.message : "Profile photo upload failed.");
+    }
+  });
+
+  const removePhoto = useMutation({
+    mutationFn: api.deleteProfilePhoto,
+    onSuccess: async () => {
+      setPhotoError(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me"] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "photo"] })
+      ]);
+    },
+    onError: (caught) => {
+      setPhotoError(caught instanceof Error ? caught.message : "Profile photo removal failed.");
+    }
+  });
+
   if (profile.isLoading || files.isLoading) {
     return <Loading label="Preparing dashboard" />;
   }
 
   const storageBytes = files.data?.reduce((total, file) => total + file.sizeBytes, 0) ?? 0;
   const firstName = profile.data?.displayName?.split(" ")[0] ?? "there";
+  const avatarLabel = profile.data?.displayName?.slice(0, 1) ?? profile.data?.email.slice(0, 1) ?? "U";
   const readinessItems = [
     { label: "Authentication", detail: "Cognito session accepted", icon: ShieldCheck },
     { label: "HTTP API", detail: "JWT route reached", icon: Route },
@@ -53,6 +117,15 @@ export function DashboardPage() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     updateProfile.mutate();
+  }
+
+  function selectPhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (file) {
+      uploadPhoto.mutate(file);
+    }
   }
 
   return (
@@ -106,10 +179,10 @@ export function DashboardPage() {
           tone="blue"
         />
         <StatCard
-          icon={ShieldCheck}
-          label="Account created"
-          value={profile.data ? formatDate(profile.data.createdAt) : "-"}
-          detail="Synced from Cognito"
+          icon={ImageIcon}
+          label="Profile photo"
+          value={profile.data?.profilePhotoKey ? "Set" : "Empty"}
+          detail="Stored with S3/local upload"
           tone="amber"
         />
       </section>
@@ -117,12 +190,16 @@ export function DashboardPage() {
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="rounded-lg border border-line bg-paper p-5 shadow-panel">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-soft text-brand">
-              <Boxes className="h-5 w-5" />
+            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-soft text-xl font-semibold uppercase text-brand">
+              {photo.data?.imageUrl ? (
+                <img alt="" className="h-full w-full object-cover" src={photo.data.imageUrl} />
+              ) : (
+                avatarLabel
+              )}
             </div>
             <div>
               <h2 className="text-xl font-semibold">Profile</h2>
-              <p className="text-sm text-muted">Stored in Postgres and editable through the API.</p>
+              <p className="text-sm text-muted">Profile data and photo are editable through the API.</p>
             </div>
           </div>
           <form onSubmit={submit} className="grid max-w-xl gap-4">
@@ -139,12 +216,37 @@ export function DashboardPage() {
               </Button>
             </div>
           </form>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand-strong">
+              <Camera className="h-4 w-4" />
+              {uploadPhoto.isPending ? "Uploading..." : "Upload photo"}
+              <input
+                accept={profilePhotoContentTypes.join(",")}
+                className="sr-only"
+                disabled={uploadPhoto.isPending}
+                type="file"
+                onChange={selectPhoto}
+              />
+            </label>
+            {profile.data?.profilePhotoKey ? (
+              <Button
+                disabled={removePhoto.isPending}
+                type="button"
+                variant="ghost"
+                onClick={() => removePhoto.mutate()}
+              >
+                <Trash2 className="h-4 w-4" />
+                Remove
+              </Button>
+            ) : null}
+          </div>
+          {photoError ? <p className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{photoError}</p> : null}
         </div>
 
         <div className="rounded-lg border border-line bg-paper p-5 shadow-panel">
           <h2 className="text-xl font-semibold">Next checkpoints</h2>
           <div className="mt-4 grid gap-3">
-            {["Upload and download a file", "Promote an admin user", "Run a DB migration"].map((item) => (
+            {["Upload a profile photo", "Upload and download a file", "Promote an admin user"].map((item) => (
               <div key={item} className="flex items-center gap-3 rounded-md border border-line bg-field px-3 py-3">
                 <CheckCircle2 className="h-4 w-4 text-brand" />
                 <span className="text-sm font-medium text-ink">{item}</span>
@@ -155,4 +257,8 @@ export function DashboardPage() {
       </section>
     </div>
   );
+}
+
+function isAllowedPhotoType(value: string): value is (typeof profilePhotoContentTypes)[number] {
+  return profilePhotoContentTypes.includes(value as (typeof profilePhotoContentTypes)[number]);
 }

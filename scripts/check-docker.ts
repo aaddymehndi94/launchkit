@@ -78,7 +78,7 @@ console.log(composeVersion.stdout.trim());
 function run(command: string, args: string[]): Promise<CommandResult> {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
-      shell: isWindows,
+      shell: false,
       stdio: ["ignore", "pipe", "pipe"]
     });
 

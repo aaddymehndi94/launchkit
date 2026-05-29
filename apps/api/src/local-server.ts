@@ -5,7 +5,7 @@ process.env.AUTH_MODE ??= "local";
 process.env.STAGE ??= "local";
 process.env.DATABASE_URL ??= "postgres://launchkit:launchkit@localhost:5432/launchkit";
 process.env.DATABASE_SSL ??= "false";
-process.env.CORS_ALLOWED_ORIGINS ??= "http://localhost:5173";
+process.env.CORS_ALLOWED_ORIGINS ??= "http://localhost:5173,http://127.0.0.1:5173";
 
 const { app } = await import("./app.js");
 

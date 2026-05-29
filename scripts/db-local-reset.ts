@@ -1,32 +1,22 @@
-import concurrently from "concurrently";
 import { spawn } from "node:child_process";
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
 
-const apiPort = process.env.API_PORT ?? "4000";
-const webPort = process.env.WEB_PORT ?? "5173";
+const phrase = "RESET LOCAL DB";
+const rl = createInterface({ input, output });
+const answer = await rl.question(
+  `This deletes only the local Docker Postgres volume from docker-compose.local.yml. Type ${phrase} to continue: `
+);
+rl.close();
 
+if (answer !== phrase) {
+  console.log("Local database reset cancelled.");
+  process.exit(1);
+}
+
+await run("docker", ["compose", "-f", "docker-compose.local.yml", "down", "-v"]);
 await run("pnpm", ["db:ensure:local"]);
 await run("pnpm", ["db:seed:local"]);
-
-const { result } = concurrently(
-  [
-    {
-      name: "api",
-      command: `pnpm --filter @launchkit/api dev -- --port ${apiPort}`,
-      prefixColor: "cyan"
-    },
-    {
-      name: "web",
-      command: `pnpm --filter @launchkit/web dev -- --host 0.0.0.0 --port ${webPort}`,
-      prefixColor: "magenta"
-    }
-  ],
-  {
-    killOthers: ["failure", "success"],
-    restartTries: 0
-  }
-);
-
-await result;
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {

@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const roleSchema = z.enum(["user", "admin"]);
+export const profilePhotoContentTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+export const maxProfilePhotoBytes = 5 * 1024 * 1024;
 
 export const profileSchema = z.object({
   id: z.string().uuid(),
@@ -8,6 +10,10 @@ export const profileSchema = z.object({
   email: z.string().email(),
   displayName: z.string().nullable(),
   role: roleSchema,
+  profilePhotoKey: z.string().nullable(),
+  profilePhotoContentType: z.string().nullable(),
+  profilePhotoSizeBytes: z.number().int().nonnegative().nullable(),
+  profilePhotoUpdatedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string()
 });
@@ -45,6 +51,31 @@ export const fileDownloadResponseSchema = z.object({
   expiresInSeconds: z.number().int().positive()
 });
 
+export const profilePhotoPresignRequestSchema = z.object({
+  filename: z.string().trim().min(1).max(240),
+  contentType: z.enum(profilePhotoContentTypes),
+  sizeBytes: z.number().int().positive().max(maxProfilePhotoBytes)
+});
+
+export const profilePhotoSaveRequestSchema = z.object({
+  key: z.string().min(1),
+  contentType: z.enum(profilePhotoContentTypes),
+  sizeBytes: z.number().int().positive().max(maxProfilePhotoBytes)
+});
+
+export const profilePhotoPresignResponseSchema = z.object({
+  key: z.string().min(1),
+  uploadUrl: z.string().url(),
+  method: z.literal("PUT"),
+  headers: z.record(z.string())
+});
+
+export const profilePhotoViewResponseSchema = z.object({
+  imageUrl: z.string().url().nullable(),
+  expiresInSeconds: z.number().int().positive().nullable(),
+  contentType: z.string().nullable()
+});
+
 export const adminRoleUpdateSchema = z.object({
   role: roleSchema
 });
@@ -77,4 +108,8 @@ export type FileRecord = z.infer<typeof fileRecordSchema>;
 export type PresignUploadInput = z.infer<typeof presignUploadRequestSchema>;
 export type PresignUploadResponse = z.infer<typeof presignUploadResponseSchema>;
 export type FileDownloadResponse = z.infer<typeof fileDownloadResponseSchema>;
+export type ProfilePhotoPresignInput = z.infer<typeof profilePhotoPresignRequestSchema>;
+export type ProfilePhotoSaveInput = z.infer<typeof profilePhotoSaveRequestSchema>;
+export type ProfilePhotoPresignResponse = z.infer<typeof profilePhotoPresignResponseSchema>;
+export type ProfilePhotoViewResponse = z.infer<typeof profilePhotoViewResponseSchema>;
 export type AdminMetrics = z.infer<typeof adminMetricsSchema>;

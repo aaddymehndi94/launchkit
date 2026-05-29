@@ -13,6 +13,7 @@ import type { AppEnv } from "./types.js";
 
 export function createApp() {
   const app = new Hono<AppEnv>();
+  const stage = readEnv("STAGE", "local");
   const allowedOrigins = readEnv("CORS_ALLOWED_ORIGINS", "*")
     .split(",")
     .map((origin) => origin.trim())
@@ -31,7 +32,11 @@ export function createApp() {
           return allowedOrigins[0] ?? "*";
         }
 
-        return allowedOrigins.includes(origin) ? origin : allowedOrigins[0] ?? origin;
+        if (stage === "local" && isTrustedLocalOrigin(origin)) {
+          return origin;
+        }
+
+        return allowedOrigins.includes(origin) ? origin : "";
       },
       allowHeaders: [
         "authorization",
@@ -67,3 +72,7 @@ export function createApp() {
 }
 
 export const app = createApp();
+
+function isTrustedLocalOrigin(origin: string) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}

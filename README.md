@@ -1,22 +1,41 @@
 # LaunchKit
 
-LaunchKit is a full-stack AWS starter repository for small products that need the same foundation every time: React frontend, Lambda API, Cognito auth, S3 files, Secrets Manager, Neon Postgres, Drizzle migrations, dev/prod environments, and repeatable tests before deployment.
+LaunchKit is a full-stack AWS starter repository for products that need the same foundation every time: React frontend, Lambda API, Cognito auth, S3 files, Secrets Manager, Neon Postgres, Drizzle migrations, dev/prod environments, and repeatable checks before deployment.
 
-The default stack is TypeScript everywhere:
+The stack is TypeScript everywhere:
 
-- `apps/web`: React + Vite + Tailwind v4 dashboard frontend.
-- `apps/api`: Hono Lambda API for HTTP API Gateway.
-- `packages/db`: Drizzle schema, SQL migrations, and query helpers.
+- `apps/web`: React, Vite, Tailwind v4 dashboard frontend.
+- `apps/api`: Hono API running locally with Node and in AWS Lambda behind HTTP API Gateway.
+- `packages/db`: Drizzle schema, SQL migrations, seeds, and query helpers.
+- `packages/contracts`: Zod schemas and shared API types.
 - `infra/cdk`: AWS CDK v2 infrastructure.
-- `packages/contracts`, `packages/core`, `packages/testing`: shared contracts, utilities, and test fixtures.
+- `scripts`: cross-platform operational scripts.
+
+The starter app includes profile editing, profile photo upload, file upload/download, and admin user management. It is intentionally small, but every feature crosses the real frontend, API, storage, database, auth, and test boundaries.
+
+## Daily Workflow
+
+For normal development, use these commands:
+
+```powershell
+pnpm dev
+pnpm deploy:dev
+pnpm deploy:prod
+```
+
+`pnpm dev` starts local Postgres, checks the exact migration history, applies pending local migrations, seeds local data, then starts the API and web app.
+
+`pnpm deploy:dev` runs the full verification gate, checks the dev database migration history, applies pending dev migrations, then deploys CDK.
+
+`pnpm deploy:prod` asks once for `DEPLOY PROD`, runs the full verification gate, checks the prod database migration history, applies pending prod migrations, then deploys CDK.
+
+Manual migration commands still exist for advanced troubleshooting, but developers should not need them for normal local work or deploys.
 
 ## Windows First-Time Setup
 
 Use PowerShell in Windows Terminal. After installing tools, close and reopen the terminal so PATH updates are loaded.
 
-### 1. Install Required Tools
-
-Install with `winget`:
+Install the required tools:
 
 ```powershell
 winget install --id Microsoft.WindowsTerminal -e
@@ -34,12 +53,11 @@ corepack enable
 corepack prepare pnpm@10.13.1 --activate
 ```
 
-Check everything:
+Verify tools:
 
 ```powershell
 git --version
 node --version
-corepack --version
 pnpm --version
 docker --version
 docker compose version
@@ -47,65 +65,9 @@ docker info
 aws --version
 ```
 
-Expected: Node should be `24.x`. Docker Desktop must be open and fully running before local database commands work. If `docker info` fails, open Docker Desktop from the Start menu, wait until it says it is running, then open a new PowerShell window.
+Expected: Node should be `24.x`, matching `.nvmrc`. Docker Desktop must be open and fully running before `pnpm dev` can prepare the local database.
 
-### 2. Configure AWS Credentials
-
-Create a named AWS profile:
-
-```powershell
-aws configure --profile launchkit-dev
-```
-
-Enter your AWS access key, secret access key, default region, and output:
-
-```text
-Default region name: us-east-1
-Default output format: json
-```
-
-Use the profile in the current terminal:
-
-```powershell
-$env:AWS_PROFILE="launchkit-dev"
-$env:AWS_REGION="us-east-1"
-aws sts get-caller-identity
-```
-
-For a permanent default in future terminals:
-
-```powershell
-setx AWS_PROFILE launchkit-dev
-setx AWS_REGION us-east-1
-```
-
-### 3. Install Project Dependencies
-
-From the repo root:
-
-```powershell
-pnpm install
-```
-
-This creates `pnpm-lock.yaml`. Commit that lockfile after the first install.
-
-### 4. Start Local Database
-
-Before starting Postgres, verify Docker:
-
-```powershell
-docker --version
-docker compose version
-docker info
-```
-
-On Windows, this error means Docker Desktop is installed but the Docker daemon is not running:
-
-```text
-npipe:////./pipe/docker_engine
-```
-
-Fix it by opening Docker Desktop from the Start menu and waiting until it says it is running. If Docker Desktop will not start, restart Windows once, then check WSL:
+If `docker info` fails with `npipe:////./pipe/docker_engine`, open Docker Desktop from the Start menu and wait until it says it is running. If Docker still will not start:
 
 ```powershell
 wsl --status
@@ -113,25 +75,38 @@ wsl --install
 wsl --update
 ```
 
-Restart Windows after installing WSL, then open Docker Desktop again.
+Restart Windows after installing or updating WSL.
 
-Then run:
+## AWS And Neon Setup
+
+Create an AWS profile:
 
 ```powershell
-pnpm db:local:up
-pnpm db:migrate:local
-pnpm db:seed:local
+aws configure --profile launchkit-dev
+$env:AWS_PROFILE="launchkit-dev"
+$env:AWS_REGION="ap-south-1"
+aws sts get-caller-identity
 ```
 
-Local Postgres runs at:
+Use your preferred AWS region consistently for CDK bootstrap and deploys.
+
+Create Neon databases or branches for:
+
+- `launchkit-dev`
+- `launchkit-prod`
+
+Copy each connection string with SSL enabled, such as:
 
 ```text
-postgres://launchkit:launchkit@localhost:5432/launchkit
+postgresql://user:password@host/dbname?sslmode=require
 ```
 
-### 5. Run The App Locally
+Do not commit database URLs. Deployed stages load them from AWS Secrets Manager.
+
+## Install And Run Locally
 
 ```powershell
+pnpm install
 pnpm dev
 ```
 
@@ -140,47 +115,61 @@ Open:
 - Web: `http://localhost:5173`
 - API health: `http://localhost:4000/health`
 
-Local auth accepts any password. Use:
+Local auth accepts any password:
 
 - Normal user: `user@example.com`
 - Admin user: `admin@example.com`
 
-## Neon Setup
+If a local migration was rewritten before it was committed, `pnpm dev` resets only the local Docker Postgres volume, applies the current migrations, seeds data, and continues. Dev and prod never auto-reset.
 
-Create two Neon databases or branches:
+## Database Workflow
 
-- `launchkit-dev`
-- `launchkit-prod`
+Drizzle schema lives in `packages/db/src/schema.ts`. Generated SQL migrations live in `packages/db/migrations`.
 
-Copy each connection string. Use SSL. A typical Neon URL looks like:
+Normal schema change workflow:
 
-```text
-postgresql://user:password@host/dbname?sslmode=require
+```powershell
+pnpm db:generate
+pnpm db:check
+pnpm test
+pnpm dev
 ```
 
-Do not commit database URLs. They go into AWS Secrets Manager after CDK creates the stage secret.
+`db:generate` creates a migration from schema changes. `db:check` validates Drizzle metadata. `pnpm dev`, `pnpm deploy:dev`, and `pnpm deploy:prod` handle applying pending migrations automatically after exact history checks.
 
-## AWS First Deploy
+To inspect migration state:
 
-Bootstrap CDK once per AWS account/region:
+```powershell
+pnpm db:status:local
+pnpm db:status:dev
+pnpm db:status:prod
+```
+
+The migration guard compares the repo journal, SQL timestamps, and SHA-256 SQL hashes against `drizzle.__drizzle_migrations`. It applies only pending suffix migrations. If a shared database is ahead of the repo or history diverges, deploy stops.
+
+Rollback strategy is intentionally forward-only in production. If a schema mistake ships, fix it with a new corrective migration. For serious data mistakes, use Neon restore points or branches from the Neon dashboard, then redeploy/migrate deliberately.
+
+## AWS Deploy
+
+Bootstrap once per AWS account/region:
 
 ```powershell
 pnpm --filter @launchkit/infra exec cdk bootstrap
 ```
 
-Deploy dev:
+First dev deploy:
 
 ```powershell
 pnpm deploy:dev
 ```
 
-The deploy creates a Secrets Manager secret:
+On the very first deploy, the database secret may not exist yet. The deploy script creates the infrastructure, stops, and tells you to update this Secrets Manager secret:
 
 ```text
 /launchkit/dev/app
 ```
 
-Open AWS Secrets Manager, edit that secret, and replace the placeholder JSON with your Neon dev values:
+Use your Neon dev URL:
 
 ```json
 {
@@ -189,58 +178,100 @@ Open AWS Secrets Manager, edit that secret, and replace the placeholder JSON wit
 }
 ```
 
-Run deployed dev migrations:
-
-```powershell
-pnpm db:migrate:dev
-```
-
-Deploy again so Lambda and frontend are fully ready:
+Then run:
 
 ```powershell
 pnpm deploy:dev
 ```
 
-For prod, repeat with:
+The second deploy sees the configured database, applies pending migrations, and deploys the app.
+
+For prod:
 
 ```powershell
 pnpm deploy:prod
-pnpm db:migrate:prod
 ```
 
-Prod migration asks you to type `MIGRATE PROD` before it runs.
+Type `DEPLOY PROD` once when prompted. There is no second migration prompt during the normal prod deploy path.
 
-## Daily Commands
+## Release And Smoke Checks
+
+Smoke checks require the deployed API URL:
 
 ```powershell
-pnpm dev                 # local API + web
-pnpm verify              # lint, typecheck, tests, build, cdk synth
-pnpm docker:check        # verify Docker CLI, Compose, and daemon
-pnpm db:generate         # generate Drizzle migration after schema changes
-pnpm db:migrate:local    # apply migrations locally
-pnpm deploy:dev          # verify, then deploy dev
-pnpm deploy:prod         # verify, then deploy prod
+$env:LAUNCHKIT_API_URL="https://your-api-id.execute-api.your-region.amazonaws.com"
+pnpm smoke:dev
 ```
 
-## Manual AWS Setup Notes
+Release commands run deploy, then smoke checks:
 
-You can do the first-time dashboard work manually:
+```powershell
+pnpm release:dev
+pnpm release:prod
+```
 
-- IAM: make sure your AWS user/role can deploy CDK stacks, Lambda, API Gateway, Cognito, S3, CloudFront, Secrets Manager, IAM, and CloudWatch.
-- Secrets Manager: update `/launchkit/dev/app` and `/launchkit/prod/app` with Neon URLs.
-- Cognito: after users sign up, add admin users to the `admin` group from the Cognito console, or use the admin dashboard once an admin exists.
-- CloudFront: the frontend URL is printed by CDK outputs after deploy.
+`release:prod` uses `pnpm deploy:prod`, so the only prod confirmation is `DEPLOY PROD`.
 
-## Cost Defaults
+## Safe Destroy
 
-LaunchKit keeps costs low by default:
+Use the safe wrappers instead of raw `cdk destroy`:
 
-- Lambda and HTTP API are pay-per-use.
-- No VPC and no NAT Gateway.
-- S3 + CloudFront host the frontend.
-- Neon hosts Postgres outside AWS.
-- Logs have short retention in dev.
-- Dev resources use destroy-friendly removal policies.
+```powershell
+pnpm destroy:dev
+```
+
+Dev destroy prints AWS identity and stack name, then requires typing `DESTROY DEV`.
+
+Prod destroy is deliberately harder:
+
+```powershell
+$env:ALLOW_PROD_DESTROY="true"
+pnpm destroy:prod
+```
+
+It prints AWS identity and stack name, then requires typing `DESTROY PROD`. Prod CDK resources are configured with retain-first policies where appropriate, so some retained resources may need manual cleanup from AWS dashboards.
+
+## Useful Commands
+
+```powershell
+pnpm dev                 # prepare local DB, seed, start API + web
+pnpm verify              # lint, typecheck, tests, build, db check, cdk synth
+pnpm test                # all workspace tests
+pnpm docker:check        # verify Docker CLI, Compose, and daemon
+pnpm db:generate         # generate Drizzle migration after schema changes
+pnpm db:check            # validate Drizzle migration metadata
+pnpm db:status:local     # show local migration state
+pnpm deploy:dev          # verify, ensure dev DB, deploy dev
+pnpm deploy:prod         # one confirmation, verify, ensure prod DB, deploy prod
+pnpm release:dev         # deploy dev, then smoke dev
+```
+
+Advanced manual commands:
+
+```powershell
+pnpm db:ensure:local
+pnpm db:ensure:dev
+pnpm db:ensure:prod
+pnpm db:migrate:local
+pnpm db:migrate:dev
+pnpm db:migrate:prod
+pnpm db:local:reset
+```
+
+Use these only when diagnosing migration or database issues directly. `db:migrate:prod` keeps its own `MIGRATE PROD` confirmation because it bypasses the root deploy wrapper.
+
+## Developer Handoff
+
+Coding agents and developers should read [`AGENTS.md`](AGENTS.md) first. It is the canonical project guide.
+
+For a new API-backed feature:
+
+1. Add shared schemas and types in `packages/contracts`.
+2. Add Drizzle schema, migration, mappers, and query helpers in `packages/db` when persistence is needed.
+3. Add Hono routes in `apps/api`.
+4. Add web client methods and React UI in `apps/web`.
+5. Add tests at each boundary touched by the feature.
+6. Run `pnpm verify` before handoff.
 
 ## More Docs
 
@@ -248,4 +279,3 @@ LaunchKit keeps costs low by default:
 - [Architecture](docs/architecture.md)
 - [Database and migrations](docs/database.md)
 - [Deployment runbook](docs/deployment.md)
-- [Agent guide](docs/AGENTS.md)

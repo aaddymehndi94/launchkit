@@ -20,7 +20,7 @@ corepack enable
 corepack prepare pnpm@10.13.1 --activate
 ```
 
-Before running local database commands, Docker Desktop must be open and fully running:
+Before running `pnpm dev` or local database commands, Docker Desktop must be open and fully running:
 
 ```powershell
 docker --version
@@ -28,7 +28,7 @@ docker compose version
 docker info
 ```
 
-`docker info` must succeed before `pnpm db:local:up`.
+`docker info` must succeed before `pnpm dev` can prepare local Postgres.
 
 ## Common Windows Issues
 

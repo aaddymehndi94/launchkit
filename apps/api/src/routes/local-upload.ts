@@ -27,12 +27,13 @@ export const localUploadRoutes = new Hono<AppEnv>()
     const targetPath = resolveLocalUploadPath(c.req.query("key"));
     const filename = c.req.query("filename") ?? "download";
     const contentType = c.req.query("contentType") ?? "application/octet-stream";
+    const disposition = c.req.query("disposition") === "inline" ? "inline" : "attachment";
     const body = await readFile(targetPath);
 
     return new Response(body, {
       headers: {
         "content-type": contentType,
-        "content-disposition": `attachment; filename="${filename.replaceAll('"', "")}"`
+        "content-disposition": `${disposition}; filename="${filename.replaceAll('"', "")}"`
       }
     });
   });

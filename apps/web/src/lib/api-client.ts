@@ -5,6 +5,10 @@ import type {
   PresignUploadInput,
   PresignUploadResponse,
   Profile,
+  ProfilePhotoPresignInput,
+  ProfilePhotoPresignResponse,
+  ProfilePhotoSaveInput,
+  ProfilePhotoViewResponse,
   UpdateProfileInput,
   UserRole
 } from "@launchkit/contracts";
@@ -86,6 +90,21 @@ export function createApiClient(
     getFileDownload: (id: string) => request<FileDownloadResponse>(`/files/${id}/download`),
     deleteFile: (id: string) =>
       request<FileRecord>(`/files/${id}`, {
+        method: "DELETE"
+      }),
+    getProfilePhoto: () => request<ProfilePhotoViewResponse>("/me/photo"),
+    createProfilePhotoUpload: (input: ProfilePhotoPresignInput) =>
+      request<ProfilePhotoPresignResponse>("/me/photo/presign", {
+        method: "POST",
+        body: JSON.stringify(input)
+      }),
+    saveProfilePhoto: (input: ProfilePhotoSaveInput) =>
+      request<Profile>("/me/photo", {
+        method: "PUT",
+        body: JSON.stringify(input)
+      }),
+    deleteProfilePhoto: () =>
+      request<Profile>("/me/photo", {
         method: "DELETE"
       }),
     listUsers: () => request<Profile[]>("/admin/users"),

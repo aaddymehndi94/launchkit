@@ -13,9 +13,15 @@ if (answer !== "MIGRATE PROD") {
   process.exit(1);
 }
 
-const child = spawn("pnpm", ["--filter", "@launchkit/db", "db:migrate:prod"], {
+const command = process.platform === "win32" ? "cmd.exe" : "pnpm";
+const args =
+  process.platform === "win32"
+    ? ["/d", "/s", "/c", "pnpm", "--filter", "@launchkit/db", "db:migrate:prod"]
+    : ["--filter", "@launchkit/db", "db:migrate:prod"];
+
+const child = spawn(command, args, {
   stdio: "inherit",
-  shell: process.platform === "win32"
+  shell: false
 });
 
 child.on("exit", (code) => process.exit(code ?? 1));

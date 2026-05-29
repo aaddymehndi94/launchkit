@@ -23,6 +23,10 @@ export const profiles = pgTable(
     email: varchar("email", { length: 320 }).notNull(),
     displayName: varchar("display_name", { length: 120 }),
     role: roleEnum("role").notNull().default("user"),
+    profilePhotoKey: text("profile_photo_key"),
+    profilePhotoContentType: varchar("profile_photo_content_type", { length: 120 }),
+    profilePhotoSizeBytes: bigint("profile_photo_size_bytes", { mode: "number" }),
+    profilePhotoUpdatedAt: timestamp("profile_photo_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },

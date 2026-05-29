@@ -40,6 +40,66 @@ export async function updateProfile(db: DbClient, profileId: string, displayName
   return mapProfile(updated[0]);
 }
 
+export type ProfilePhotoInput = {
+  key: string;
+  contentType: string;
+  sizeBytes: number;
+};
+
+export async function setProfilePhoto(db: DbClient, profileId: string, input: ProfilePhotoInput) {
+  const existing = await db.query.profiles.findFirst({
+    where: eq(profiles.id, profileId)
+  });
+
+  if (!existing) {
+    throw notFound("Profile not found.");
+  }
+
+  const updated = await db
+    .update(profiles)
+    .set({
+      profilePhotoKey: input.key,
+      profilePhotoContentType: input.contentType,
+      profilePhotoSizeBytes: input.sizeBytes,
+      profilePhotoUpdatedAt: new Date(),
+      updatedAt: new Date()
+    })
+    .where(eq(profiles.id, profileId))
+    .returning();
+
+  return {
+    profile: mapProfile(updated[0]!),
+    previousPhotoKey: existing.profilePhotoKey
+  };
+}
+
+export async function clearProfilePhoto(db: DbClient, profileId: string) {
+  const existing = await db.query.profiles.findFirst({
+    where: eq(profiles.id, profileId)
+  });
+
+  if (!existing) {
+    throw notFound("Profile not found.");
+  }
+
+  const updated = await db
+    .update(profiles)
+    .set({
+      profilePhotoKey: null,
+      profilePhotoContentType: null,
+      profilePhotoSizeBytes: null,
+      profilePhotoUpdatedAt: null,
+      updatedAt: new Date()
+    })
+    .where(eq(profiles.id, profileId))
+    .returning();
+
+  return {
+    profile: mapProfile(updated[0]!),
+    previousPhotoKey: existing.profilePhotoKey
+  };
+}
+
 export async function listProfiles(db: DbClient) {
   const rows = await db.select().from(profiles).orderBy(desc(profiles.createdAt));
   return rows.map(mapProfile);
