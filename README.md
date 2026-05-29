@@ -87,7 +87,90 @@ Important:
 - if `docker info` fails with `npipe:////./pipe/docker_engine`, Docker is installed but not running
 - if Docker does not start, run `wsl --status`, then `wsl --install` and `wsl --update`, then restart Windows
 
-## 3. Open The Project In VS Code
+## 3. Recommended Setup On Mac
+
+Use:
+
+- VS Code
+- Terminal or the VS Code terminal
+
+Install the common tools:
+
+```bash
+brew install git node awscli
+brew install --cask visual-studio-code docker
+```
+
+Then enable `pnpm`:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.13.1 --activate
+```
+
+Check that everything works:
+
+```bash
+git --version
+node --version
+pnpm --version
+docker --version
+docker compose version
+docker info
+aws --version
+```
+
+Important:
+
+- Docker Desktop must be open before `pnpm dev`
+- if `docker info` fails, open Docker Desktop and wait until it finishes starting
+- if `code .` does not work yet, open VS Code and install the shell command from Command Palette
+
+## 4. Recommended Setup On Linux
+
+Use:
+
+- VS Code
+- your normal terminal, or the VS Code terminal
+
+Install the common tools using your package manager.
+
+Ubuntu or Debian example:
+
+```bash
+sudo apt update
+sudo apt install -y git curl awscli
+```
+
+Then install Node.js 24 and enable `pnpm`.
+
+If you use `nvm`:
+
+```bash
+nvm install 24
+nvm use 24
+corepack enable
+corepack prepare pnpm@10.13.1 --activate
+```
+
+Install Docker using Docker's official instructions for your distro, then verify:
+
+```bash
+git --version
+node --version
+pnpm --version
+docker --version
+docker compose version
+docker info
+aws --version
+```
+
+Important:
+
+- Docker must be running before `pnpm dev`
+- if Docker permissions fail on Linux, make sure your user can run Docker without `sudo`, or run the Docker post-install steps from Docker docs
+
+## 5. Open The Project In VS Code
 
 In PowerShell:
 
@@ -96,17 +179,24 @@ cd C:\path\to\launchkit
 code .
 ```
 
+On Mac or Linux:
+
+```bash
+cd /path/to/launchkit
+code .
+```
+
 Inside VS Code:
 
 1. Open the folder
 2. Open Terminal
-3. Make sure the shell says PowerShell
+3. Use PowerShell on Windows, or your normal shell on Mac/Linux
 
-## 4. Install Codex On This Machine
+## 6. Install Codex On This Machine
 
 Install codex extension using vscode extensions and log in to your openai account
 
-## 5. Get AWS Credentials
+## 7. Get AWS Credentials
 
 You need AWS credentials before you can deploy.
 
@@ -139,6 +229,14 @@ aws sts get-caller-identity
 
 If `aws sts get-caller-identity` works, your AWS credentials are ready.
 
+On Mac or Linux, set the profile in the current shell like this:
+
+```bash
+export AWS_PROFILE="launchkit-dev"
+export AWS_REGION="ap-south-1"
+aws sts get-caller-identity
+```
+
 ### If You Need To Create Credentials Yourself In AWS Console
 
 1. Sign in to the AWS Console
@@ -165,7 +263,12 @@ The AWS CLI stores these in your Windows user profile, typically under:
 - `%UserProfile%\.aws\credentials`
 - `%UserProfile%\.aws\config`
 
-## 6. Create Or Find Your Neon Database
+On Mac or Linux, they are usually stored in:
+
+- `~/.aws/credentials`
+- `~/.aws/config`
+
+## 8. Create Or Find Your Neon Database
 
 You need one PostgreSQL connection string for each environment.
 
@@ -209,7 +312,7 @@ Keep both of these ready:
 
 Do not commit them into git.
 
-## 7. Install Project Dependencies
+## 9. Install Project Dependencies
 
 In the project root:
 
@@ -217,11 +320,23 @@ In the project root:
 pnpm install
 ```
 
-## 8. Run Locally
+On Mac or Linux:
+
+```bash
+pnpm install
+```
+
+## 10. Run Locally
 
 Start local development:
 
 ```powershell
+pnpm dev
+```
+
+On Mac or Linux:
+
+```bash
 pnpm dev
 ```
 
@@ -241,7 +356,7 @@ Local login users:
 - admin: `admin@example.com`
 - password: anything
 
-## 9. Prepare AWS For First Deploy
+## 11. Prepare AWS For First Deploy
 
 Set your AWS profile in the current PowerShell window:
 
@@ -250,17 +365,36 @@ $env:AWS_PROFILE="launchkit-dev"
 $env:AWS_REGION="ap-south-1"
 ```
 
+On Mac or Linux:
+
+```bash
+export AWS_PROFILE="launchkit-dev"
+export AWS_REGION="ap-south-1"
+```
+
 Then bootstrap CDK once per AWS account and region:
 
 ```powershell
 pnpm --filter @launchkit/infra exec cdk bootstrap
 ```
 
-## 10. First Dev Deploy
+On Mac or Linux:
+
+```bash
+pnpm --filter @launchkit/infra exec cdk bootstrap
+```
+
+## 12. First Dev Deploy
 
 Run:
 
 ```powershell
+pnpm deploy:dev
+```
+
+On Mac or Linux:
+
+```bash
 pnpm deploy:dev
 ```
 
@@ -271,7 +405,7 @@ What usually happens on the first run:
 
 That is normal.
 
-## 11. Add The Neon Dev Connection String In AWS Secrets Manager
+## 13. Add The Neon Dev Connection String In AWS Secrets Manager
 
 After the first `pnpm deploy:dev`, open AWS Console and do this:
 
@@ -305,6 +439,12 @@ Then go back to PowerShell and run:
 pnpm deploy:dev
 ```
 
+On Mac or Linux:
+
+```bash
+pnpm deploy:dev
+```
+
 This time LaunchKit should:
 
 - run verification
@@ -312,7 +452,7 @@ This time LaunchKit should:
 - apply pending dev migrations
 - deploy the app
 
-## 12. Deploy To Production Later
+## 14. Deploy To Production Later
 
 When you are ready:
 
@@ -328,6 +468,12 @@ When you are ready:
 pnpm deploy:prod
 ```
 
+On Mac or Linux:
+
+```bash
+pnpm deploy:prod
+```
+
 3. Type:
 
 ```text
@@ -336,7 +482,7 @@ DEPLOY PROD
 
 That is the normal production confirmation.
 
-## 13. The Main Commands You Will Actually Use
+## 15. The Main Commands You Will Actually Use
 
 ```powershell
 pnpm dev
@@ -352,7 +498,7 @@ What they mean:
 - `pnpm deploy:prod`: verify, migrate prod DB if needed, deploy prod
 - `pnpm verify`: run lint, typecheck, tests, build, DB check, and CDK synth
 
-## 14. If Something Breaks
+## 16. If Something Breaks
 
 Try these first:
 
@@ -378,8 +524,9 @@ If AWS is the problem:
 
 - rerun `aws sts get-caller-identity`
 - make sure `$env:AWS_PROFILE` is set in the same PowerShell window
+- on Mac or Linux, make sure `AWS_PROFILE` is exported in the same shell session
 
-## 15. For Developers And Coding Agents
+## 17. For Developers And Coding Agents
 
 Read [`AGENTS.md`](AGENTS.md) first.
 
